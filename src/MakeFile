@@ -1,0 +1,14 @@
+CXX = /arm-uknown-linux-gnuabi/bin/arm-linux-gnueabihf-g++
+CXXFLAGS = -Wall -g -std=c++11
+
+testAxis: testAxis.o NetworkStream.o FileStream.o AxisCamera.o
+	$(CXX) $(CXXFLAGS) -o testAxis testAxis.o NetworkStream.o FileStream.o AxisCamera.o
+
+testAxis.o: testAxis.cpp AxisCamera.h
+	$(CXX) $(CXXFLAGS) -c testAxis.cpp
+
+NetworkStream.o: NetworkStream.cpp NetworkStream.h Stream.h
+
+FileStream.o: FileStream.cpp FileStream.h Stream.h
+
+AxisCamera.o: AxisCamera.h NetworkStream.h Stream.h
