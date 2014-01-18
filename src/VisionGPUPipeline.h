@@ -9,6 +9,7 @@
 #ifndef VISION_GPU_PIPELINE_H
 #define VISION_GPU_PIPELINE_H
 
+#include <GLES2/gl2.h>
 #include "types.h"
 
 typedef enum
@@ -35,7 +36,9 @@ typedef enum
 class GPUFramebuffer
 {
     protected:
-       
+        U32 mFBWidth;
+        U32 mFBHeight;
+        GLuint mFramebuffer;   
 };
 
 //
