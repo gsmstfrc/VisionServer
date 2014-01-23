@@ -10,6 +10,10 @@
 #define VISION_GPU_PIPELINE_H
 
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#include "ilclient.h"
 #include "types.h"
 
 typedef enum
@@ -39,6 +43,44 @@ class GPUFramebuffer
         U32 mFBWidth;
         U32 mFBHeight;
         GLuint mFramebuffer;   
+        GLuint mRenderbuffer;
+        bool mRenderToTexture;
+        GLuint mTextureID;
+
+    public:
+        GPUFramebuffer();
+        GPUFramebuffer(U32 width, U32 height);
+        virtual ~GPUFramebuffer();
+
+        bool create();
+        void destroy();
+
+        void setWidth(U32 width)
+        {
+            if (!mFramebuffer)
+                mFBWidth = width;
+        }
+
+        U32 getWidth()
+        {
+            return mFBWidth;
+        }
+
+        void setHeight(U32 height)
+        {
+            if (!mFramebuffer)
+                mFBHeight = height;
+        }
+
+        U32 getHeight()
+        {
+            return mFBHeight;
+        }
+
+        void setRenderToTexture(bool RTT)
+        {
+            mRenderToTexture = RTT;
+        }
 };
 
 //
@@ -71,6 +113,49 @@ class VisionGPUPipeline
         // Ouput image parameters (should be same as input unless downsampling is involved)
         U32 mOutputWidth;
         U32 mOutputHeight;
+
+        // Graphics context
+        EGLDisplay mDisplay;
+        EGLSurface mSurface;
+        EGLContext mContext;
+
+        // OpenMAX JPG Decoder stuffs
+        struct OMXComponent
+        {
+            COMPONENT_T *component;
+            OMX_HANDLETYPE handle;
+            int inport;
+            int outport;
+        };
+
+        struct JPGDecoderInfo
+        {
+            ILCLIENT_T *client;
+            OMXComponent *decoder;
+            OMXComponent *glrenderer;
+            OMX_BUFFERHEADERTYPE **inBuffHeader;
+            int buffHeaderCount;
+            OMX_BUFFERHEADERTYPE *outBuffHeader;
+
+            JPGDecoderInfo() :
+                client(nullptr),
+                decoder(nullptr),
+                glrenderer(nullptr),
+                inBuffHeader(nullptr),
+                buffHeaderCount(0),
+                outBuffHeader(nullptr)
+            {}
+        };
+
+        JPGDecoderInfo *mJPGDecoder;
+
+        bool _OMAXInit();
+
+    public:
+        VisionGPUPipeline();
+        virtual ~VisionGPUPipeline();
+
+        bool createContext();
 };
 
 #endif
