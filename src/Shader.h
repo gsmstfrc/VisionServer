@@ -36,6 +36,11 @@ enum
     UNIFORM_COUNT,
 };
 
+struct TextureData
+{
+    U32 mTextureID;
+};
+
 // A handle that is used by a uniform buffer to set the value of a uniform
 class CGRUniform : public CCReferenceBase
 {
@@ -130,9 +135,16 @@ protected:
             return;
         }
         
-        if (((T*)mData)[handle->_offset/sizeof(T)] != val)
+        /*if (((T*)mData)[handle->_offset/sizeof(T)] != val)
         {
             ((T*)mData)[handle->_offset/sizeof(T)] = val;
+            handle->_dirty = true;
+        }*/
+        std::cout << "Called\n";
+        if (memcmp(&val, &mData[handle->_offset], sizeof(T)) != 0)
+        {
+            std::cout << "Assigning datas\n";
+            *((T*)(&mData[handle->_offset])) = val;
             handle->_dirty = true;
         }
     }
@@ -155,6 +167,8 @@ public:
     void uniformValue(CGRUniformHandle &handle, const CCSafeArray<CMVector4> val);
     void uniformValue(CGRUniformHandle &handle, const CMMatrix4x4 val);
     void uniformValue(CGRUniformHandle &handle, const CCSafeArray<CMMatrix4x4> val);
+    void uniformValue(CGRUniformHandle &handle, const TextureData val);
+    void uniformValue(CGRUniformHandle &handle, const CCSafeArray<TextureData> val);
 
 };
 

@@ -52,6 +52,9 @@ void CGRUniformBuffer::_addUniform(const std::string &name, U32 type, U32 size, 
         case UNIFORM_MATRIX4:
             totalSize = size*sizeof(CMMatrix4x4);
             break;
+        case UNIFORM_SAMPLER2D:
+            totalSize = size*sizeof(TextureData);
+            break;
         default:
             // Nothing we can use. Return!
             return;
@@ -91,12 +94,16 @@ void CGRUniformBuffer::_allocateBuffer()
             case UNIFORM_MATRIX4:
                 size += (*it)->size*sizeof(CMMatrix4x4);
                 break;
+            case UNIFORM_SAMPLER2D:
+                size += (*it)->size*sizeof(TextureData);
+                break;
             default:
                 // Should not be here
                 return;
         }
     }
     mData = new U8[size];
+    std::cout << "Allocated mData of size " << size << "\n";
 }
 
 const std::vector<CGRUniformHandle>* CGRUniformBuffer::getUniforms() const
@@ -199,6 +206,26 @@ void CGRUniformBuffer::uniformValue(CGRUniformHandle &handle, CCSafeArray<CMMatr
     _uniformValue(handle, val);
 }
 
+void CGRUniformBuffer::uniformValue(CGRUniformHandle &handle, TextureData val)
+{
+    std::cout << "Uniform thing called\n";
+    if (handle->uniformType != UNIFORM_SAMPLER2D)
+    {
+        std::cout << "Uniform thing failed\n";
+        return;
+    }
+    _uniformValue(handle, val);
+}
+
+void CGRUniformBuffer::uniformValue(CGRUniformHandle &handle, CCSafeArray<TextureData> val)
+{
+    if (handle->uniformType != UNIFORM_SAMPLER2D)
+    {
+        return;
+    }
+    _uniformValue(handle, val);
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 CGRShader::CGRShader()
@@ -238,6 +265,7 @@ CGRUniformBufferHandle CGRShader::createUniformBuffer()
     {
         handle->_addUniform((*it)._name, (*it)._type, (*it)._size, (*it)._bindloc);
     }
+    handle->_allocateBuffer();
     return handle;
 }
 

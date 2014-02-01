@@ -13,8 +13,12 @@
 #include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <string>
 #include "ilclient.h"
 #include "types.h"
+#include "ShaderGLES.h"
+#include "VertexBufferGLES.h"
+#include "FileStream.h"
 
 typedef enum
 {
@@ -55,6 +59,9 @@ class GPUFramebuffer
         bool create();
         void destroy();
 
+        void bind();
+        void unbind();
+
         void setWidth(U32 width)
         {
             if (!mFramebuffer)
@@ -81,6 +88,113 @@ class GPUFramebuffer
         {
             mRenderToTexture = RTT;
         }
+};
+
+// 
+// @class VisionGPUPass
+//
+// This abstract class provides the basic infrastructure to do a vision pass.
+// A pass simply takes an input texture of a certain size, and renders to an
+// internal framebuffer (which may have an attached texture that may be fed
+// into another pass). Most passes will take a set of parameters that depend
+// on the particular effect, and draw a fullscreen quad that uses a shader
+// that does the real math in the pass's calculation, though some passes may
+// draw different shapes to perform distortion effects. A pass may also store
+// references to other passes as outputs that depend on the results of this pass.
+class VisionGPUPass
+{
+    protected:
+        // Image parameters
+        U32 mInputWidth;
+        U32 mInputHeight;
+        U32 mOutputWidth;
+        U32 mOutputHeight;
+
+        GLuint mInputImageID;
+
+        // Internal resources
+        GPUFramebuffer mFramebuffer;
+        CGRShaderRef mShader;
+        CGRUniformBufferHandle mUniformBuffer;
+        std::string mVertexShaderFile;
+        std::string mFragmentShaderFile;
+        CGRVertexBufferRef mVertexBuffer;
+
+        // Outputs
+        std::vector<VisionGPUPass*> mOutputs;
+
+    public:
+        VisionGPUPass();
+        virtual ~VisionGPUPass();
+
+        // Boring accessor methods
+        inline void setInputWidth(U32 width)
+        {
+            mInputWidth = width;
+        }
+
+        inline U32 getInputWidth()
+        {
+            return mInputWidth;
+        }
+
+        inline void setInputHeight(U32 height)
+        {
+            mInputHeight = height;
+        }
+
+        inline U32 getInputHeight()
+        {
+            return mInputHeight;
+        }
+
+        inline void setOutputWidth(U32 width)
+        {
+            mOutputWidth = width;
+        }
+
+        inline U32 getOutputWidth()
+        {
+            return mOutputWidth;
+        }
+
+        inline void setOutputHeight(U32 height)
+        {
+            mOutputHeight = height;
+        }
+
+        inline U32 getOutputHeight()
+        {
+            return mOutputHeight;
+        }
+
+        inline void setInputImageID(GLuint id)
+        {
+            mInputImageID = id;
+        }
+
+    protected:
+        // Some internal resource management stuff
+        virtual bool _allocFrameBuffer();
+        virtual void _destroyFramebuffer();
+        virtual bool _loadShaders();
+        virtual void _destroyShaders();
+        virtual bool _setupVertexBuffers();
+        virtual void _destroyVertexBuffers();
+
+        // Rendering stuff
+        virtual void _bindResources();
+        virtual void _setShaderParams(); 
+        virtual void _draw();
+
+    public:
+        // Public API
+        bool initialize();
+        void execute();
+
+        void saveImage(const std::string &location);
+
+        void addOutput(VisionGPUPass* output);
 };
 
 //
@@ -119,6 +233,10 @@ class VisionGPUPipeline
         EGLSurface mSurface;
         EGLContext mContext;
 
+        // Camera input texture
+        void *mCamTexData;
+        GLuint mCamTexID;
+
         // OpenMAX JPG Decoder stuffs
         struct OMXComponent
         {
@@ -150,12 +268,24 @@ class VisionGPUPipeline
         JPGDecoderInfo *mJPGDecoder;
 
         bool _OMAXInit();
+    public:
+        void _OMAXDecodeJPG(char *jpg, size_t length);
+        void TEST_getDecodedJPG(char *decodeBuffer);
+    protected:
+        void _OMAXPortSettingsChanged();
+        void _OMAXPortSettingsChangedAgain();
 
     public:
         VisionGPUPipeline();
         virtual ~VisionGPUPipeline();
 
         bool createContext();
+
+    // Stupid hacky test stuff
+        inline GLuint getTexID()
+        {
+            return mCamTexID;
+        }
 };
 
 #endif
