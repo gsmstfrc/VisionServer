@@ -35,6 +35,21 @@ bool CGRShaderGLES::_compile()
     // Now link the shader
     glLinkProgram(mShaderID);
     glGetProgramiv(mShaderID, GL_LINK_STATUS, &status);
+
+    GLint loglength;
+    glGetProgramiv(mShaderID, GL_INFO_LOG_LENGTH, &loglength);
+    if (loglength > 0)
+    {
+        GLchar *log = (GLchar *)malloc(loglength);
+        glGetProgramInfoLog(mShaderID, loglength, &loglength, log);
+        CCLogger::Log("CGRShaderGLES::_compileShader()", log);
+        free(log);
+    }
+
+    if (status == 0)
+    {
+        return false;
+    }
     
     return true;
 }
@@ -138,9 +153,10 @@ bool CGRShaderGLES::_comileShader(U32 shader)
 void CGRShaderGLES::_uniformValues(const CGRUniformBufferHandle &handle)
 {
     const std::vector<CGRUniformHandle> *uniforms = handle->getUniforms();
+    std::cout << "Binding " << uniforms->size() << " uniforms\n";
     for (auto it = uniforms->begin(); it != uniforms->end(); it++)
     {
-        if ((*it)->_dirty)
+        if (!((*it)->_dirty))
             continue;
         switch ((*it)->uniformType)
         {
@@ -159,6 +175,18 @@ void CGRShaderGLES::_uniformValues(const CGRUniformBufferHandle &handle)
             case UNIFORM_MATRIX4:
                 glUniformMatrix4fv((GLint)(*it)->_bindLoc, (GLsizei)(*it)->size, GL_FALSE, (GLfloat*)&(handle->mData[(*it)->_offset]));
                 break;
+            case UNIFORM_SAMPLER2D:
+                U8* ptr = handle->mData;
+                if (ptr == NULL)
+                    std::cout << "Null Pointer\n";
+                std::cout << "Offset: " << (*it)->_offset << "\n";
+                std::cout << "mData: " << (int)handle->mData;
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, (((TextureData*)&((handle->mData[(*it)->_offset]))))->mTextureID);
+                glUniform1i((GLint)(*it)->_bindLoc, 0);
+                std::cout << "Bound " << 
+ (((TextureData*)&((handle->mData[(*it)->_offset]))))->mTextureID << "to 0\n"; 
+                 break;
         }
         (*it)->_dirty = false;
     }

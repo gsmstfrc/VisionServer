@@ -79,6 +79,7 @@ VisionGPUPass::VisionGPUPass() : mInputWidth(640),
                                  mInputHeight(480),
                                  mOutputWidth(640),
                                  mOutputHeight(480),
+                                 mRenderToScreen(false),
                                  mVertexShaderFile("shaders/default.vs"),
                                  mFragmentShaderFile("shaders/default.fs")
 {
@@ -177,7 +178,10 @@ void VisionGPUPass::_destroyVertexBuffers()
 
 void VisionGPUPass::_bindResources()
 {
-    mFramebuffer.bind();
+    if (mRenderToScreen)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    else
+        mFramebuffer.bind();
     mShader->bind(mUniformBuffer);
     mVertexBuffer->bind();
 }
@@ -226,6 +230,27 @@ void VisionGPUPass::saveImage(const std::string &location)
     outstream.write(mOutputWidth*mOutputHeight*4, imagebuff);
     outstream.closeFile();
     delete[] imagebuff;
+}
+
+////////////////////////////////////////////////////////////////
+
+VisionThresholdPass::VisionThresholdPass() : mMinColors(0.0, 0.0, 0.0, 0.0),
+                                             mMaxColors(1.0, 1.0, 1.0, 1.0)
+{
+    mVertexShaderFile = "shaders/threshold.vs";
+    mFragmentShaderFile = "shaders/threshold.fs";
+}
+
+void VisionThresholdPass::_setShaderParams()
+{
+    CGRUniformHandle texHandle = mUniformBuffer->getUniformByName("inTex");
+    TextureData tex = {mInputImageID};
+    mUniformBuffer->uniformValue(texHandle, tex);
+
+    CGRUniformHandle minHandle = mUniformBuffer->getUniformByName("mincolor");
+    mUniformBuffer->uniformValue(minHandle, mMinColors);
+    CGRUniformHandle maxHandle = mUniformBuffer->getUniformByName("maxcolor");
+    mUniformBuffer->uniformValue(maxHandle, mMaxColors);
 }
 
 ////////////////////////////////////////////////////////////////
@@ -560,6 +585,8 @@ void VisionGPUPipeline::_OMAXPortSettingsChanged()
 
     if (imageWidth != mInputWidth || imageHeight != mInputHeight) {
         std::cout << "Error: Input JPG not equal to set input size\n";
+        std::cout << "image width: " << imageWidth << " input width" << mInputWidth;
+        std::cout << "image height: " << imageHeight << " input height" << mInputHeight;
         return;
     }
     
@@ -596,6 +623,7 @@ void VisionGPUPipeline::_OMAXPortSettingsChangedAgain()
 
 bool VisionGPUPipeline::createContext()
 {
+    std::cout << "Creating context\n";
     bcm_host_init();
     int32_t success = 0;
     EGLBoolean result;
@@ -717,4 +745,9 @@ void VisionGPUPipeline::TEST_getDecodedJPG(char *decodeBuffer) {
     //glBindTexture(GL_TEXTURE_2D, mTextureID);
     //glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, decodeBuffer);
     //glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void VisionGPUPipeline::TEST_swapbuffer()
+{
+    eglSwapBuffers(mDisplay, mSurface);
 }

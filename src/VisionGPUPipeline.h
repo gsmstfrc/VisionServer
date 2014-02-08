@@ -123,6 +123,9 @@ class VisionGPUPass
         // Outputs
         std::vector<VisionGPUPass*> mOutputs;
 
+        // Render to screen
+        bool mRenderToScreen;
+
     public:
         VisionGPUPass();
         virtual ~VisionGPUPass();
@@ -131,6 +134,7 @@ class VisionGPUPass
         inline void setInputWidth(U32 width)
         {
             mInputWidth = width;
+            mOutputWidth = width;
         }
 
         inline U32 getInputWidth()
@@ -141,6 +145,7 @@ class VisionGPUPass
         inline void setInputHeight(U32 height)
         {
             mInputHeight = height;
+            mOutputHeight = height;
         }
 
         inline U32 getInputHeight()
@@ -148,19 +153,9 @@ class VisionGPUPass
             return mInputHeight;
         }
 
-        inline void setOutputWidth(U32 width)
-        {
-            mOutputWidth = width;
-        }
-
         inline U32 getOutputWidth()
         {
             return mOutputWidth;
-        }
-
-        inline void setOutputHeight(U32 height)
-        {
-            mOutputHeight = height;
         }
 
         inline U32 getOutputHeight()
@@ -171,6 +166,11 @@ class VisionGPUPass
         inline void setInputImageID(GLuint id)
         {
             mInputImageID = id;
+        }
+
+        inline void setRenderToScreen(bool val)
+        {
+            mRenderToScreen = val;
         }
 
     protected:
@@ -195,6 +195,48 @@ class VisionGPUPass
         void saveImage(const std::string &location);
 
         void addOutput(VisionGPUPass* output);
+};
+
+//
+// @class VisionThresholdPass
+//
+// This class performs a threshold filter on the input image. A threshold
+// simply filters colors that exist in a certain range. The pass has two
+// parameters: the min color and the max color. For a pixel to pass through
+// this filter, ALL the color components of the pixel must be in the range
+// of all the channels in the color filter. The filter will filter the RGBA
+// channels.
+class VisionThresholdPass : public VisionGPUPass
+{
+    protected:
+        // Parameters
+        CMVector4 mMinColors;
+        CMVector4 mMaxColors;
+
+        virtual void _setShaderParams();
+
+    public:
+        VisionThresholdPass();
+
+        inline void setMinColors(CMVector4 &vec)
+        {
+            mMinColors = vec;
+        }
+
+        inline CMVector4 getMinColors()
+        {
+            return mMinColors;
+        }
+        
+        inline void setMaxColors(CMVector4 &vec)
+        {
+            mMaxColors = vec;
+        }
+
+        inline CMVector4 getMaxColors(CMVector4 &vec)
+        {
+            return mMaxColors;
+        }
 };
 
 //
@@ -271,6 +313,7 @@ class VisionGPUPipeline
     public:
         void _OMAXDecodeJPG(char *jpg, size_t length);
         void TEST_getDecodedJPG(char *decodeBuffer);
+        void TEST_swapbuffer();
     protected:
         void _OMAXPortSettingsChanged();
         void _OMAXPortSettingsChangedAgain();
@@ -286,6 +329,39 @@ class VisionGPUPipeline
         {
             return mCamTexID;
         }
+
+        inline void setInputWidth(U32 width)
+        {
+            mInputWidth = width;
+            mOutputWidth = width;
+        }
+
+        inline U32 getInputWidth()
+        {
+            return mInputWidth;
+        }
+
+        inline void setInputHeight(U32 height)
+        {
+            mInputHeight = height;
+            mOutputHeight = height;
+        }
+
+        inline U32 getInputHeight()
+        {
+            return mInputHeight;
+        }
+
+        inline U32 getOutputWidth()
+        {
+            return mOutputWidth;
+        }
+
+        inline U32 getOutputHeight()
+        {
+            return mOutputHeight;
+        }
+
 };
 
 #endif

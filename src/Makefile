@@ -8,7 +8,7 @@ LDFLAGS = -L$(SDKROOT)/opt/vc/lib -lGLESv2 -lEGL -lopenmaxil -lbcm_host -lvcos -
 CXXFLAGS += -I$(SDKROOT)/opt/vc/include/ -I$(SDKROOT)/opt/vc/include/interface/vcos/pthreads -I$(SDKROOT)/opt/vc/include/interface/vmcs_host/linux -I./ -I../libs/ilclient -I../libs/vgfont
 CFLAGS += -I$(SDKROOT)/opt/vc/include/ -I$(SDKROOT)/opt/vc/include/interface/vcos/pthreads -I$(SDKROOT)/opt/vc/include/interface/vmcs_host/linux -I./ -I../libs/ilclient -I../libs/vgfont
 
-SOURCES = testAxis.cpp NetworkStream.cpp FileStream.cpp AxisCamera.cpp VisionGPUPipeline.cpp Logger.cpp Matrix.cpp Plane.cpp RenderDevice.cpp SafeArray.cpp Shader.cpp ShaderGLES.cpp Vector.cpp VertexBuffer.cpp VertexBufferGLES.cpp Frustum.cpp
+SOURCES = testAxis.cpp NetworkStream.cpp FileStream.cpp AxisCamera.cpp VisionGPUPipeline.cpp Logger.cpp Matrix.cpp Plane.cpp RenderDevice.cpp SafeArray.cpp Shader.cpp ShaderGLES.cpp Vector.cpp VertexBuffer.cpp VertexBufferGLES.cpp Frustum.cpp Lifecam.cpp
 SOURCES_C = ilclient.c ilcore.c 
 
 OBJECTS = $(SOURCES:.cpp=.o)
