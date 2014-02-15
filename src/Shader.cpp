@@ -103,7 +103,6 @@ void CGRUniformBuffer::_allocateBuffer()
         }
     }
     mData = new U8[size];
-    std::cout << "Allocated mData of size " << size << "\n";
 }
 
 const std::vector<CGRUniformHandle>* CGRUniformBuffer::getUniforms() const
@@ -208,10 +207,8 @@ void CGRUniformBuffer::uniformValue(CGRUniformHandle &handle, CCSafeArray<CMMatr
 
 void CGRUniformBuffer::uniformValue(CGRUniformHandle &handle, TextureData val)
 {
-    std::cout << "Uniform thing called\n";
     if (handle->uniformType != UNIFORM_SAMPLER2D)
     {
-        std::cout << "Uniform thing failed\n";
         return;
     }
     _uniformValue(handle, val);

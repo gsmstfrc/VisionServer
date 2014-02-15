@@ -12,7 +12,7 @@
 Lifecam::Lifecam() : mDeviceID(0),
                      mInputWidth(640),
                      mInputHeight(480),
-                     mFrameRate(10),
+                     mFrameRate(30),
                      mTempBuffer(nullptr),
                      mVideoDevice(nullptr),
                      mStatus(nullptr),

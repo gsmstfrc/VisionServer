@@ -153,10 +153,10 @@ bool CGRShaderGLES::_comileShader(U32 shader)
 void CGRShaderGLES::_uniformValues(const CGRUniformBufferHandle &handle)
 {
     const std::vector<CGRUniformHandle> *uniforms = handle->getUniforms();
-    std::cout << "Binding " << uniforms->size() << " uniforms\n";
     for (auto it = uniforms->begin(); it != uniforms->end(); it++)
     {
-        if (!((*it)->_dirty))
+        if (!((*it)->_dirty) && 
+             ((*it)->uniformType != UNIFORM_SAMPLER2D))
             continue;
         switch ((*it)->uniformType)
         {
@@ -179,14 +179,10 @@ void CGRShaderGLES::_uniformValues(const CGRUniformBufferHandle &handle)
                 U8* ptr = handle->mData;
                 if (ptr == NULL)
                     std::cout << "Null Pointer\n";
-                std::cout << "Offset: " << (*it)->_offset << "\n";
-                std::cout << "mData: " << (int)handle->mData;
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, (((TextureData*)&((handle->mData[(*it)->_offset]))))->mTextureID);
                 glUniform1i((GLint)(*it)->_bindLoc, 0);
-                std::cout << "Bound " << 
- (((TextureData*)&((handle->mData[(*it)->_offset]))))->mTextureID << "to 0\n"; 
-                 break;
+                break;
         }
         (*it)->_dirty = false;
     }

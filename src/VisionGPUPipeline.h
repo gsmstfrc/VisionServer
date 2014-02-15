@@ -84,6 +84,11 @@ class GPUFramebuffer
             return mFBHeight;
         }
 
+        GLuint getTextureID()
+        {
+            return mTextureID;
+        }
+
         void setRenderToTexture(bool RTT)
         {
             mRenderToTexture = RTT;
@@ -131,7 +136,7 @@ class VisionGPUPass
         virtual ~VisionGPUPass();
 
         // Boring accessor methods
-        inline void setInputWidth(U32 width)
+        virtual void setInputWidth(U32 width)
         {
             mInputWidth = width;
             mOutputWidth = width;
@@ -142,7 +147,7 @@ class VisionGPUPass
             return mInputWidth;
         }
 
-        inline void setInputHeight(U32 height)
+        virtual void setInputHeight(U32 height)
         {
             mInputHeight = height;
             mOutputHeight = height;
@@ -168,6 +173,11 @@ class VisionGPUPass
             mInputImageID = id;
         }
 
+        inline GLuint getTextureID()
+        {
+            return mFramebuffer.getTextureID();
+        }
+
         inline void setRenderToScreen(bool val)
         {
             mRenderToScreen = val;
@@ -184,6 +194,7 @@ class VisionGPUPass
 
         // Rendering stuff
         virtual void _bindResources();
+        virtual void _unbindResources();
         virtual void _setShaderParams(); 
         virtual void _draw();
 
@@ -193,6 +204,7 @@ class VisionGPUPass
         void execute();
 
         void saveImage(const std::string &location);
+        void readToBuffer(U8 *buffer);
 
         void addOutput(VisionGPUPass* output);
 };
@@ -236,6 +248,34 @@ class VisionThresholdPass : public VisionGPUPass
         inline CMVector4 getMaxColors(CMVector4 &vec)
         {
             return mMaxColors;
+        }
+};
+
+//
+// @class VisionPackPass
+//
+//  This class performs a packing shader to an input threshold image. It
+//  puts an image in a format so that each bit represents white or black
+//  in an image and greatly reduces the size of the threshold masks
+class VisionPackPass : public VisionGPUPass
+{
+    protected:
+        virtual bool _setupVertexBuffers();
+        virtual void _setShaderParams();
+        virtual void _draw();
+    public:
+        VisionPackPass();
+        
+        virtual void setInputWidth(U32 width)
+        {
+            mInputWidth = width;
+            mOutputWidth = width/32;
+        }
+
+        virtual void setInputHeight(U32 height)
+        {
+            mInputHeight = height;
+            mOutputHeight = height;
         }
 };
 

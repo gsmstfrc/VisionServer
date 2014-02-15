@@ -10,6 +10,8 @@
 #include <bcm_host.h>
 #include "VisionGPUPipeline.h"
 
+unsigned int _getMilliseconds();
+
 GPUFramebuffer::GPUFramebuffer() :
                     mFBWidth(128),
                     mFBHeight(128),
@@ -97,6 +99,7 @@ bool VisionGPUPass::_allocFrameBuffer()
     mFramebuffer.setWidth(mOutputWidth);
     mFramebuffer.setHeight(mOutputHeight);
     mFramebuffer.setRenderToTexture(true);
+    std::cout << mOutputWidth << "x" << mOutputHeight << "FB created\n";
     return mFramebuffer.create();
 }
 
@@ -186,6 +189,14 @@ void VisionGPUPass::_bindResources()
     mVertexBuffer->bind();
 }
 
+void VisionGPUPass::_unbindResources()
+{
+    mVertexBuffer->unbind();
+    mShader->unbind();
+    glBindTexture(GL_TEXTURE_2D, 0);
+    mFramebuffer.unbind();
+}
+
 void VisionGPUPass::_setShaderParams()
 {
     CGRUniformHandle texHandle = mUniformBuffer->getUniformByName("inTex");
@@ -196,7 +207,10 @@ void VisionGPUPass::_setShaderParams()
 void VisionGPUPass::_draw()
 {
     glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(0, 0, mOutputWidth, mOutputHeight);
+    if (mRenderToScreen)
+        glViewport(100, 100, mOutputWidth, mOutputHeight);
+    else
+        glViewport(0, 0, mOutputWidth, mOutputHeight);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
@@ -216,6 +230,7 @@ void VisionGPUPass::execute()
     _setShaderParams();
     _bindResources();
     _draw();
+    _unbindResources();
 }
 
 void VisionGPUPass::saveImage(const std::string &location)
@@ -230,6 +245,14 @@ void VisionGPUPass::saveImage(const std::string &location)
     outstream.write(mOutputWidth*mOutputHeight*4, imagebuff);
     outstream.closeFile();
     delete[] imagebuff;
+}
+
+void VisionGPUPass::readToBuffer(U8 *buffer)
+{
+    mFramebuffer.bind();
+    glReadPixels(0, 0, mOutputWidth, mOutputHeight,
+                 GL_RGBA, GL_UNSIGNED_BYTE, buffer);
+    mFramebuffer.unbind();
 }
 
 ////////////////////////////////////////////////////////////////
@@ -247,12 +270,82 @@ void VisionThresholdPass::_setShaderParams()
     TextureData tex = {mInputImageID};
     mUniformBuffer->uniformValue(texHandle, tex);
 
-    CGRUniformHandle minHandle = mUniformBuffer->getUniformByName("mincolor");
-    mUniformBuffer->uniformValue(minHandle, mMinColors);
-    CGRUniformHandle maxHandle = mUniformBuffer->getUniformByName("maxcolor");
-    mUniformBuffer->uniformValue(maxHandle, mMaxColors);
+    //CGRUniformHandle minHandle = mUniformBuffer->getUniformByName("mincolor");
+    //mUniformBuffer->uniformValue(minHandle, mMinColors);
+    //CGRUniformHandle maxHandle = mUniformBuffer->getUniformByName("maxcolor");
+    //mUniformBuffer->uniformValue(maxHandle, mMaxColors);
 }
 
+////////////////////////////////////////////////////////////////
+
+VisionPackPass::VisionPackPass()
+{
+    mInputWidth = 640;
+    mInputHeight = 480;
+    mOutputWidth = mInputWidth/32;
+    mOutputHeight = mInputHeight;
+    mVertexShaderFile = "shaders/pack.vs";
+    mFragmentShaderFile = "shaders/pack.fs";
+}
+
+bool VisionPackPass::_setupVertexBuffers()
+{
+    mVertexBuffer = new CGRVertexBufferGLES;
+
+    // Custom geometry setup to ensure we lookup with the right UVs
+    U32 triCount = mOutputWidth;
+    CVertexArray vertices(triCount*2);
+    CUVArray uvs(triCount*2);
+    F32 increment = 32.0f/(F32)mInputWidth;
+    F32 uv = 0.0f;
+    F32 minvt = -1.0f;
+    F32 maxvt = -1.0f + 2*increment;
+    int vt = 0;
+    for (int i = 0; i < mOutputWidth; i++) {
+        vertices[vt] = {minvt, -1.0f, 0.0f };
+        vertices[vt+1] = {minvt, 1.0f, 0.0f };
+        //vertices[vt+2] = {maxvt, 1.0f, 0.0f };
+        //vertices[vt+3] = {maxvt, 1.0f, 0.0f };
+        //vertices[vt+4] = {minvt, 1.0f, 0.0f };
+        //vertices[vt+5] = {minvt, -1.0f, 0.0f };
+
+        uvs[vt] = {uv, 0.0f };
+        uvs[vt+1] = {uv, 1.0f };
+        //uvs[vt+2] = {uv, 0.0f };
+        //uvs[vt+3] = {uv, 0.0f };
+        //uvs[vt+4] = {uv, 0.0f };
+        //uvs[vt+5] = {uv, 1.0f };
+
+        uv += increment;
+        minvt += 2*increment;
+        maxvt += 2*increment;
+        vt += 2;
+    }
+    mVertexBuffer->addBuffer(vertices, ATTRIB_VERTEX);
+    mVertexBuffer->addBuffer(uvs, ATTRIB_UV);
+    mVertexBuffer->activate();
+    return true;
+}
+
+void VisionPackPass::_draw()
+{
+    glClear(GL_COLOR_BUFFER_BIT);
+    if (mRenderToScreen)
+        glViewport(100, 100, mOutputWidth, mOutputHeight);
+    else
+        glViewport(0, 0, mOutputWidth, mOutputHeight);
+    glDrawArrays(GL_LINES, 0, mOutputWidth*2);
+}
+
+void VisionPackPass::_setShaderParams()
+{
+    CGRUniformHandle texHandle = mUniformBuffer->getUniformByName("inTex");
+    TextureData tex = {mInputImageID};
+    mUniformBuffer->uniformValue(texHandle, tex);
+
+    CGRUniformHandle increment = mUniformBuffer->getUniformByName("increment");
+    mUniformBuffer->uniformValue(increment, 1/(F32)mInputWidth);
+}
 ////////////////////////////////////////////////////////////////
 
 VisionGPUPipeline::VisionGPUPipeline() : mInputWidth(640),
@@ -450,7 +543,6 @@ void VisionGPUPipeline::_OMAXDecodeJPG(char *jpg, size_t length)
     int bufferIndex = 0;
 
     while (toRead > 0) {
-        std::cout << "To Read: " << toRead << "\n";
         OMX_BUFFERHEADERTYPE *header = mJPGDecoder->inBuffHeader[bufferIndex];
 
         bufferIndex++;
@@ -463,6 +555,8 @@ void VisionGPUPipeline::_OMAXDecodeJPG(char *jpg, size_t length)
             header->nFilledLen = toRead;
 
         toRead = toRead - header->nFilledLen;
+
+        U32 time1 = _getMilliseconds();
 
         memcpy(header->pBuffer, offset, header->nFilledLen);
         offset += header->nFilledLen;
@@ -481,7 +575,6 @@ void VisionGPUPipeline::_OMAXDecodeJPG(char *jpg, size_t length)
         int done = 0;
         while (done == 0) {
             if (mJPGDecoder->outBuffHeader == nullptr) {
-                std::cout << "OMX not done\n";
                 ret = ilclient_wait_for_event(mJPGDecoder->decoder->component,
                                               OMX_EventPortSettingsChanged,
                                               mJPGDecoder->decoder->outport,
@@ -502,24 +595,38 @@ void VisionGPUPipeline::_OMAXDecodeJPG(char *jpg, size_t length)
             if (header->nFilledLen == 0)
                 done = 1;
         }
+
+        U32 time2 = _getMilliseconds();
+        std::cout << "Copy time: " << time2 - time1 << "\n";
         
         OMX_SendCommand(mJPGDecoder->glrenderer->handle,
                         OMX_CommandPortEnable,
                         mJPGDecoder->glrenderer->outport, NULL);
-        OMX_UseEGLImage(mJPGDecoder->glrenderer->handle,
+        U32 error = OMX_UseEGLImage(mJPGDecoder->glrenderer->handle,
                         &mJPGDecoder->outBuffHeader,
                         mJPGDecoder->glrenderer->outport,
                         NULL,
                         mCamTexData);
         if (mJPGDecoder->outBuffHeader == NULL) {
             std::cout << "Could not create output EGL image buffer\n";
+            std::cout << "Code " << std::hex << error;
             return;
         }
-        ilclient_wait_for_event(mJPGDecoder->glrenderer->component,
+        /*ilclient_wait_for_event(mJPGDecoder->glrenderer->component,
                                 OMX_EventCmdComplete,
-                                OMX_CommandPortEnable, 1, mJPGDecoder->glrenderer->outport, 1, 0, 2000);
+                                OMX_CommandPortEnable, 1, mJPGDecoder->glrenderer->outport, 1, 0, 2000);*/
         OMX_FillThisBuffer(mJPGDecoder->glrenderer->handle,
                            mJPGDecoder->outBuffHeader);
+
+        /*ilclient_wait_for_event(mJPGDecoder->decoder->component,
+                                OMX_EventBufferFlag, OMX_BUFFERFLAG_EOS,
+                                1, mJPGDecoder->decoder->outport,
+                                1, 0, 2000);
+        ilclient_wait_for_event(mJPGDecoder->glrenderer->component,
+                                OMX_EventBufferFlag,
+                                OMX_BUFFERFLAG_EOS | OMX_BUFFERFLAG_ENDOFFRAME,
+                                1, mJPGDecoder->glrenderer->outport,
+                                1, 0, 2000);*/
         
     }
 }
@@ -604,11 +711,15 @@ void VisionGPUPipeline::_OMAXPortSettingsChanged()
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, imageWidth, imageHeight, 0,
                  GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    mCamTexData = eglCreateImageKHR(
+    
+    mCamTexData = EGL_NO_IMAGE_KHR;
+    while(mCamTexData == EGL_NO_IMAGE_KHR) {
+        mCamTexData = eglCreateImageKHR(
                    mDisplay,
                    mContext,
                    EGL_GL_TEXTURE_2D_KHR,
                    (EGLClientBuffer)mCamTexID, 0);
+    }
     if (mCamTexData == EGL_NO_IMAGE_KHR) {
         std::cout << "Error: Could not create EGL Texture\n";
         return;

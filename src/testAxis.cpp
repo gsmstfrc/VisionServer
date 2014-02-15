@@ -1,4 +1,5 @@
 #include "VisionGPUPipeline.h"
+#include "CPUVision.h"
 #include "Lifecam.h"
 #include "FileStream.h"
 #include <iostream>
@@ -27,69 +28,67 @@ int main(int argc, char *argv[])
     pipeline.setInputHeight(480); 
     pipeline.createContext();
 
-    if (argc > 1) {
-        CCFileStream fstream;
-        fstream.openFile(argv[1], "rb");
-        long imageSize = fstream.getSize();
-        char* imageBuffer = new char[imageSize];
-        fstream.read(imageSize, imageBuffer);
-        fstream.closeFile();
-        U8 *buff;
-        int len = lc.captureFrame(&buff);
-        pipeline._OMAXDecodeJPG((char*)buff, len);
-        std::cout << "Decoded JPG\n";
-        sleep(1);
-        //delete[] imageBuffer;
+    U8 *imagebuff = new U8[640*480/8];
+    CPUVision vision;
+    vision.setBitmap(imagebuff, 640, 480);
 
-        VisionGPUPass pass;
-        if (pass.initialize()) {
-            std::cout << "Render pass initialized\n";
-            pass.setInputImageID(pipeline.getTexID());
-            U32 time1 = _getMilliseconds();
-            pass.execute();
-            U32 time2 = _getMilliseconds();
-            std::cout << "Frame time: " << time2-time1 << "\n";
-            pass.saveImage("output.raw");
-            U32 time4 = _getMilliseconds();
-            std::cout << "Write to disk time: " << time4-time1 << "\n";
-        } 
-
-/*        char *output = new char[640*480*4];
-        memset(output, 0, 640*480*4);
-        //pipeline.TEST_getDecodedJPG(output);
-        CCFileStream outStream;
-        outStream.openFile("output.raw", "wb");
-        outStream.write(640*480*4, output);
-        outStream.closeFile();
-        delete[] output;
-    */}
-    else {
         U8 *buff;
         int len = 0;
 
-        VisionGPUPass pass;
+        VisionThresholdPass pass;
         pass.setInputWidth(640);
         pass.setInputHeight(480);
-        pass.setRenderToScreen(true);
+        pass.setRenderToScreen(false);
         if (pass.initialize()) {
             std::cout << "Render pass initialized\n";
         } 
         else
             exit(-1);
 
+        VisionPackPass pack;
+        pack.setInputWidth(640);
+        pack.setInputHeight(480);
+        pack.setRenderToScreen(false);
+        if (!pack.initialize())
+            exit(-1);
+        pack.setInputImageID(pass.getTextureID());
+        
         while ((len = lc.captureFrame(&buff)) <= 0);
         pipeline._OMAXDecodeJPG((char*)buff, len);
-        pass.setInputImageID(pipeline.getTexID());
         sleep(4);
-
+        int i = 0;
         while (1) {
+            U32 time1 = _getMilliseconds();
             while ((len = lc.captureFrame(&buff)) <= 0);
-
+            U32 time2 = _getMilliseconds();
+            std::cout << "Frame capture time: " << time2 - time1 << "\n";
+            U32 timeBegin = _getMilliseconds();
+            time1 = _getMilliseconds();
             pipeline._OMAXDecodeJPG((char*)buff, len);
+            time2 = _getMilliseconds();
+            std::cout << "Decode time: " << time2 - time1 << "\n";
             pass.setInputImageID(pipeline.getTexID());
+            time1 = _getMilliseconds();
             pass.execute();
-            pipeline.TEST_swapbuffer();
-        } 
+            pack.setInputImageID(pass.getTextureID());
+            pack.execute();
+            //pipeline.TEST_swapbuffer();
+            time2 = _getMilliseconds();
+            std::cout << "Execution time: " << time2 - time1 << "\n";
+            pack.readToBuffer(imagebuff);
+            if (i == 100) {
+                pass.saveImage("raw.raw");
+                pack.saveImage("pack.raw");
+            }
+            i++;
+            time1 = _getMilliseconds();
+            U32 pixels = vision.countPixels();
+            time2 = _getMilliseconds();
+            std::cout << "Pixel count: " << pixels << "\n";
+            std::cout << "Count time: " << time2-time1 << "\n";
+            
+            U32 timeEnd = _getMilliseconds();
+            std::cout << "Frame time: " << timeEnd-timeBegin << "\n";
     }
 
     while (1);
